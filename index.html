@@ -1284,12 +1284,30 @@ function getProfessionIcon(project){
 
 
 /* ====== PHOTOS / AVATARS ====== */
+const STORY_IMAGE_FILES = {
+  "Ibtissam El Amrani": "Ibtissam El Amrani.png",
+  "Meryem Benmoussa": "Meryem Benmoussa.png",
+  "Chkour Mohamed": "Chkour Mohamed.png",
+  "Hammaji Mohamed": "Hammaji Mohamed.png",
+  "Merzouki Badr": "Merzouki Badr.png",
+  "Regragui Bouchra": "Regragui Bouchra.png",
+  "Zahra Gouriche": "Zahra Gouriche.png",
+  "Ibrahim Ghamza": "Ibrahim Ghamza.png",
+  "Othmane Belakhdar": "Othmane Belakhdar.png",
+  "Touria Elgourche": "Touria Elgourche.png",
+  "Kacem Louzi": "Kacem Louzi.png",
+  "Hajji Samira": "Samira Hajji.png",
+  "Bouamama Rabiaa": "Bouamama Rabiaa.png",
+  "Sara Boussehra": "Sara Boussehra.png"
+};
 function videoId(url){
   if(!url) return '';
   const id = (url.split('v=')[1] || '').split('&')[0];
   return id.replace(/[^A-Za-z0-9_-]/g,'');   // strip any stray characters
 }
 function photoFor(s){
+  const imageFile = STORY_IMAGE_FILES[s.name];
+  if(imageFile) return `images/${encodeURIComponent(imageFile)}`;
   if(s.photo) return s.photo;
   const id = videoId(s.video);
   return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : '';
