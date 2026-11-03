@@ -10,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
@@ -446,7 +447,10 @@
     font-family:'Plus Jakarta Sans',Inter,sans-serif;flex:0 0 auto;
     box-shadow:inset 0 0 0 2px rgba(255,255,255,.7);
   }
-  .panel .who{min-width:0}
+  .panel .who{min-width:0;flex:1 1 auto}
+  .panel .pcity{
+    position:static;flex:0 0 auto;margin-inline-start:auto;max-width:150px;
+  }
   .panel .name{font-weight:700;font-size:15.5px;line-height:1.2;letter-spacing:-.01em}
   .panel .ar{color:var(--ink-500);font-size:12.5px;margin-top:2px}
   .panel .meta{
@@ -482,8 +486,8 @@
     background:rgba(0,0,0,.4);padding:5px 10px;border-radius:999px;
   }
 .panel .quote{
-  margin-top:14px;font-size:13.5px;line-height:1.55;color:var(--ink-700);
-  flex:1 1 auto;min-height:0;overflow:auto;padding-right:4px;
+  margin-top:14px;font-size:13.5px;line-height:1.65;color:var(--ink-700);
+  flex:0 0 auto;min-height:0;max-height:180px;overflow:auto;padding:0 4px;
 }
   .panel .quote::-webkit-scrollbar{width:6px}
   .panel .quote::-webkit-scrollbar-thumb{background:var(--ink-100);border-radius:999px}
@@ -534,11 +538,11 @@
   .card .ct{font-size:12px;color:var(--ink-500);margin-top:2px;display:flex;align-items:center;gap:5px}
   .card .pj{
     font-size:13.5px;color:var(--ink-700);font-weight:500;line-height:1.4;
-    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+    display:block;overflow:visible;
   }
   .card .qt{
     font-size:13px;color:var(--ink-500);line-height:1.55;
-    display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
+    display:block;overflow:visible;
   }
   .card .ftr{
     display:flex;justify-content:space-between;align-items:center;margin-top:auto;
@@ -733,9 +737,8 @@
   .pub-line{font-size:12px;color:var(--ink-500);margin-top:4px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
   .pub-line .dot{width:3px;height:3px;border-radius:50%;background:var(--ink-300)}
 
-  /* ====== PANEL : ville en haut à droite ====== */
+  /* ====== PANEL : ville dans la ligne du titre ====== */
   .panel .pcity{
-    position:absolute;top:14px;right:50px;max-width:150px;
     font-size:11.5px;font-weight:600;padding:5px 10px;border-radius:999px;
     background:var(--green-50);color:var(--green-700);border:1px solid #cfe8d6;
     display:inline-flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
@@ -743,6 +746,8 @@
   .panel .pcity svg{width:12px;height:12px;flex:0 0 auto}
   .panel .act{color:var(--ink-500);font-size:12.5px;margin-top:3px;line-height:1.35}
   .panel .video{cursor:pointer}
+  html[dir="rtl"] .panel .head{direction:rtl}
+  html[dir="rtl"] .panel .quote{text-align:right;direction:rtl}
 
   /* ====== VIDEO MODAL (pop-up) ====== */
   .video-modal{position:fixed;inset:0;z-index:9997;display:none;align-items:center;justify-content:center;padding:20px}
@@ -870,7 +875,6 @@
   <div class="map-wrap">
     <div id="map"></div>
     <aside class="panel" id="panel">
-      <div class="pcity" id="pCity"></div>
       <button class="close" id="closePanel" aria-label="Fermer">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
       </button>
@@ -880,6 +884,7 @@
           <div class="name" id="pName">—</div>
           <div class="act" id="pAct">—</div>
         </div>
+        <div class="pcity" id="pCity"></div>
       </div>
       <div class="meta" id="pMeta"></div>
      <div class="video" id="pVideo">
@@ -888,6 +893,7 @@
   </div>
   <div class="vlabel" id="pVLabel">Témoignage vidéo</div>
 </div>
+      <div class="quote" id="pQuote"></div>
       <div class="quote-year" id="pYear"></div>
       <div class="pub-line" id="pPub"></div>
       <div class="actions">
@@ -1212,19 +1218,19 @@ const cartoApiKey = (
   ''
 ).trim();
 
-if (cartoApiKey) {
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=' + encodeURIComponent(cartoApiKey), {
+const frenchBaseLayer = cartoApiKey ? L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=' + encodeURIComponent(cartoApiKey), {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>',
     maxZoom: 19,
     subdomains: 'abcd'
-  }).addTo(map);
-} else {
-  L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
+  }) : L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors &middot; <a href="https://openstreetmap.fr" target="_blank" rel="noopener">OSM France</a>',
     maxZoom: 19,
     subdomains: 'abc'
-  }).addTo(map);
-}
+  });
+frenchBaseLayer.addTo(map);
+window.setArrawajBasemapLanguage = function(){
+  if(!map.hasLayer(frenchBaseLayer)) frenchBaseLayer.addTo(map);
+};
 
 /* ====== PROFESSION ICONS ====== */
 function getProfessionIcon(project){
@@ -1284,30 +1290,12 @@ function getProfessionIcon(project){
 
 
 /* ====== PHOTOS / AVATARS ====== */
-const STORY_IMAGE_FILES = {
-  "Ibtissam El Amrani": "Ibtissam El Amrani.png",
-  "Meryem Benmoussa": "Meryem Benmoussa.png",
-  "Chkour Mohamed": "Chkour Mohamed.png",
-  "Hammaji Mohamed": "Hammaji Mohamed.png",
-  "Merzouki Badr": "Merzouki Badr.png",
-  "Regragui Bouchra": "Regragui Bouchra.png",
-  "Zahra Gouriche": "Zahra Gouriche.png",
-  "Ibrahim Ghamza": "Ibrahim Ghamza.png",
-  "Othmane Belakhdar": "Othmane Belakhdar.png",
-  "Touria Elgourche": "Touria Elgourche.png",
-  "Kacem Louzi": "Kacem Louzi.png",
-  "Hajji Samira": "Samira Hajji.png",
-  "Bouamama Rabiaa": "Bouamama Rabiaa.png",
-  "Sara Boussehra": "Sara Boussehra.png"
-};
 function videoId(url){
   if(!url) return '';
   const id = (url.split('v=')[1] || '').split('&')[0];
   return id.replace(/[^A-Za-z0-9_-]/g,'');   // strip any stray characters
 }
 function photoFor(s){
-  const imageFile = STORY_IMAGE_FILES[s.name];
-  if(imageFile) return `images/${encodeURIComponent(imageFile)}`;
   if(s.photo) return s.photo;
   const id = videoId(s.video);
   return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : '';
@@ -1320,10 +1308,18 @@ function avatarInner(s){
   const ph = photoFor(s);
   return ph ? `<img src="${ph}" alt="${s.name}" loading="lazy">` : initials(s.name);
 }
+function storyText(s,field){
+  const arabic=window.arrawajLanguage==='ar'&&window.ARRAWAJ_STORY_AR&&window.ARRAWAJ_STORY_AR[s.name];
+  return arabic&&arabic[field] ? arabic[field] : s[field];
+}
 /* Bulles d'appui : toujours « Financement » en premier, puis les autres appuis */
 function tagsFor(s){
   const rest = (s.support||[]).filter(t => t.toLowerCase() !== 'financement');
   return ['Financement', ...rest];
+}
+function displayTagsFor(s){
+  const translated=window.arrawajLanguage==='ar'&&window.ARRAWAJ_STORY_AR&&window.ARRAWAJ_STORY_AR[s.name];
+  return translated&&translated.support ? translated.support.split(/[،,]/).map(t=>t.trim()).filter(Boolean) : tagsFor(s);
 }
 
 function pinIcon(story, idx){
@@ -1355,6 +1351,7 @@ const pName = document.getElementById('pName');
 const pAct = document.getElementById('pAct');
 const pCity = document.getElementById('pCity');
 const pMeta = document.getElementById('pMeta');
+const pQuote = document.getElementById('pQuote');
 const pVideo = document.getElementById('pVideo');
 const pYear = document.getElementById('pYear');
 const pPub = document.getElementById('pPub');
@@ -1371,7 +1368,7 @@ function resetVideoFacade(s, id){
   pVideo.dataset.url = (s.video && s.video.indexOf('http')===0) ? s.video : `https://www.youtube.com/watch?v=${id}`;
   pVideo.innerHTML =
     `<div class="play"><svg viewBox="0 0 24 24" width="22" height="22" fill="#fff" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></div>
-     <div class="vlabel">${s.name} — Témoignage vidéo</div>`;
+     <div class="vlabel">${storyText(s,'name')} — ${window.arrawajLanguage==='ar'?'شهادة مصوّرة':'Témoignage vidéo'}</div>`;
 }
 
 // Lecture : ouvre la vidéo dans une fenêtre pop-up (modal)
@@ -1409,18 +1406,19 @@ document.getElementById('videoModalClose').addEventListener('click', closeVideoM
 document.getElementById('videoModalBackdrop').addEventListener('click', closeVideoModal);
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeVideoModal(); });
 
-function openStory(i){
+function openStory(i, moveMap=true){
   currentIdx = i;
   const s = STORIES[i];
 
   pAva.innerHTML = avatarInner(s);
-  pName.textContent = s.name;
-  pAct.textContent = s.project;                 // activité sous le nom
+  pName.textContent = storyText(s,'name');
+  pAct.textContent = storyText(s,'project');     // activité sous le nom
   pCity.innerHTML =                              // ville en haut à droite (avant le X)
-    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="11" r="3"/><path d="M12 21s-7-7.5-7-12a7 7 0 1 1 14 0c0 4.5-7 12-7 12z"/></svg>${s.city}`;
-  pMeta.innerHTML = tagsFor(s).map(t=>`<span class="chip yellow">${t}</span>`).join('');  // tags d'appui (Financement + …)
+    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="11" r="3"/><path d="M12 21s-7-7.5-7-12a7 7 0 1 1 14 0c0 4.5-7 12-7 12z"/></svg>${storyText(s,'city')}`;
+  pMeta.innerHTML = displayTagsFor(s).map(t=>`<span class="chip yellow">${t}</span>`).join('');
+  pQuote.textContent = storyText(s,'quote');
   pYear.innerHTML = s.year
-    ? `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> Témoignage ${s.year}`
+    ? `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> ${window.arrawajLanguage==='ar'?'شهادة':'Témoignage'} ${s.year}`
     : '';
   pPub.innerHTML = '';
 
@@ -1437,23 +1435,24 @@ function openStory(i){
     pVideo.dataset.url = s.localVideo;
     pVideo.innerHTML =
       `<div class="play"><svg viewBox="0 0 24 24" width="22" height="22" fill="#fff" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></div>
-       <div class="vlabel">${s.name} — Témoignage vidéo</div>`;
+       <div class="vlabel">${storyText(s,'name')} — ${window.arrawajLanguage==='ar'?'شهادة مصوّرة':'Témoignage vidéo'}</div>`;
   } else {
     pVideo.style.display = 'none';
     pVideo.dataset.vid = '';
   }
 
   panel.classList.add('show');
-  map.flyTo(s.coords, 9, {duration:.9});
+  if(moveMap) map.flyTo(s.coords, 9, {duration:.9});
 }
 
 document.getElementById('closePanel').onclick = ()=>panel.classList.remove('show');
 document.getElementById('pNext').onclick = ()=>openStory((currentIdx+1) % STORIES.length);
 document.getElementById('pShare').onclick = async ()=>{
   const s = STORIES[currentIdx]; if(!s) return;
-  const txt = `${s.name} — ${s.city} · Fondation Arrawaj`;
-  if(navigator.share){ try{ await navigator.share({title:txt,text:s.quote,url:location.href}); }catch{} }
-  else { navigator.clipboard?.writeText(`${txt}\n${s.quote}`); }
+  const txt = `${storyText(s,'name')} — ${storyText(s,'city')} · ${window.arrawajLanguage==='ar'?'مؤسسة الرواج':'Fondation Arrawaj'}`;
+  const quote=storyText(s,'quote');
+  if(navigator.share){ try{ await navigator.share({title:txt,text:quote,url:location.href}); }catch{} }
+  else { navigator.clipboard?.writeText(`${txt}\n${quote}`); }
 };
 
 /* ====== RECHERCHE + FILTRES ====== */
@@ -1493,7 +1492,10 @@ refreshSupportOptions();
 // recherche libre : nom, activité, ville, appui, année
 function matchesSearch(s){
   if(!searchQuery) return true;
-  return [s.name, s.project, s.city, tagsFor(s).join(' '), String(s.year||''), s.ar||'']
+  const ar = window.ARRAWAJ_TRANSLATIONS || {};
+  const arStory=window.ARRAWAJ_STORY_AR&&window.ARRAWAJ_STORY_AR[s.name];
+  const terms = [s.name, s.project, s.city, ...tagsFor(s), String(s.year||''), s.ar||'', ...(arStory?[arStory.name,arStory.project,arStory.city,arStory.support,arStory.quote]:[])];
+  return [...terms, ...terms.map(term => ar[term] || '')]
     .join(' ').toLowerCase().includes(searchQuery);
 }
 
@@ -1574,17 +1576,17 @@ function cardHTML(s,i){
       <div class="top">
         <div class="ava">${avatarInner(s)}</div>
         <div>
-          <div class="nm">${s.name}</div>
+          <div class="nm">${storyText(s,'name')}</div>
           <div class="ct">
             <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="11" r="3"/><path d="M12 21s-7-7.5-7-12a7 7 0 1 1 14 0c0 4.5-7 12-7 12z"/></svg>
-            ${s.city}${s.year?` · ${s.year}`:''}
+            ${storyText(s,'city')}${s.year?` · ${s.year}`:''}
           </div>
         </div>
       </div>
-      <div class="pj">${s.project}</div>
-      <div class="qt">« ${s.quote} »</div>
+      <div class="pj">${storyText(s,'project')}</div>
+      <div class="qt">« ${storyText(s,'quote')} »</div>
       <div class="ftr">
-        <div>${tagsFor(s).map(t=>`<span class="chip yellow" style="margin-right:4px">${t}</span>`).join('')}</div>
+        <div>${displayTagsFor(s).map(t=>`<span class="chip yellow" style="margin-right:4px">${t}</span>`).join('')}</div>
         <span class="more">Voir
           <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
         </span>
@@ -1726,6 +1728,264 @@ map.once('click',()=>map.scrollWheelZoom.enable());
     form.style.display = 'none';
     success.classList.add('show');
   });
+})();
+</script>
+<div class="language-switch" role="group" aria-label="اختيار اللغة">
+  <button type="button" class="language-option active" data-lang="fr" aria-label="Français" aria-pressed="true" title="Français">
+    <svg viewBox="0 0 36 24" role="img" aria-hidden="true"><rect width="12" height="24" fill="#002395"/><rect x="12" width="12" height="24" fill="#fff"/><rect x="24" width="12" height="24" fill="#ED2939"/></svg>
+  </button>
+  <button type="button" class="language-option" data-lang="ar" aria-label="العربية" aria-pressed="false" title="العربية">
+    <svg viewBox="0 0 36 24" role="img" aria-hidden="true"><rect width="36" height="24" rx="2" fill="#C1272D"/><path d="m18 4 2.35 6.25 6.7-.06-5.42 3.95 2.1 6.37L18 16.6l-5.73 3.91 2.1-6.37-5.42-3.95 6.7.06z" fill="none" stroke="#006233" stroke-width="1.25" stroke-linejoin="round"/></svg>
+  </button>
+</div>
+<style>
+  .language-switch{position:fixed;right:22px;bottom:22px;z-index:10000;display:flex;gap:4px;padding:5px;background:rgba(255,255,255,.94);border:1px solid rgba(11,15,20,.1);border-radius:999px;box-shadow:0 8px 28px rgba(11,15,20,.2);backdrop-filter:blur(14px)}
+  .language-option{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;line-height:1;transition:background .2s,transform .2s;}
+  .language-option svg{width:28px;height:19px;display:block;border-radius:2px;box-shadow:0 1px 3px rgba(11,15,20,.22)}
+  .language-option:hover{transform:scale(1.06);background:#f0f2f5}
+  .language-option.active{background:#eaf7ee;box-shadow:inset 0 0 0 2px #1fa84a}
+  html[dir="rtl"] body{direction:rtl;font-family:'Cairo','Noto Sans Arabic',Tahoma,sans-serif}
+  html[dir="rtl"] .nav,html[dir="rtl"] .mobile-menu,html[dir="rtl"] .filter-controls,html[dir="rtl"] .filter-row,html[dir="rtl"] .actions,html[dir="rtl"] .card .top,html[dir="rtl"] .ft-brand{direction:rtl}
+  html[dir="rtl"] .nav{padding:8px 16px 8px 10px}
+  html[dir="rtl"] .nav-search input,html[dir="rtl"] input,html[dir="rtl"] textarea,html[dir="rtl"] select{text-align:right;font-family:inherit}
+  html[dir="rtl"] .drawer-head,html[dir="rtl"] .drawer-body{text-align:right}
+  @media(max-width:640px){.language-switch{right:14px;bottom:14px}.language-option{width:40px;height:40px}}
+</style>
+<script>
+(() => {
+  const translations = window.ARRAWAJ_TRANSLATIONS = {
+    'Arrawaj — Story Mapping':'الرواج — خريطة قصص النجاح',
+    'Histoires de réussite de nos clients — Inspirés, Accompagnés, Réussis.':'قصص نجاح عملائنا — إلهام، مواكبة، نجاح.',
+    'Rechercher un témoignage…':'ابحث عن شهادة…','Rechercher un témoignage':'ابحث عن شهادة','Effacer':'مسح','Menu':'القائمة',
+    'La carte':'الخريطة','Histoires':'القصص','Ajouter mon témoignage':'أضف شهادتك',
+    'Chaque point sur cette carte':'كل نقطة على هذه الخريطة','raconte une réussite.':'تحكي قصة نجاح.',
+    'Découvrez les témoignages de celles et ceux qui ont concrétisé leurs projets avec la Fondation ARRAWAJ.':'اكتشفوا شهادات من حققوا مشاريعهم بدعم من مؤسسة الرواج.',
+    "Type d'appui":'نوع الدعم','Ville':'المدينة','Fermer':'إغلاق','Témoignage vidéo':'شهادة مصوّرة',
+    'Histoire suivante':'القصة التالية','Partager':'مشاركة','Tous les témoignages.':'جميع الشهادات.',
+    'Parcourez les témoignages de nos clients et cliquez sur une fiche pour découvrir leur parcours.':'تصفحوا شهادات عملائنا واضغطوا على بطاقة لاكتشاف مسارهم.',
+    'Trier':'ترتيب','Plus anciens d\u0027abord':'الأقدم أولاً','Plus récents d\u0027abord':'الأحدث أولاً',
+    'Et si la prochaine réussite était la vôtre ?':'وماذا لو كان النجاح القادم نجاحكم؟',
+    'Rejoignez les milliers de micro-entrepreneurs accompagnés par la Fondation ARRAWAJ et donnez vie à votre projet.':'انضموا إلى آلاف أصحاب المشاريع الصغيرة الذين تواكبهم مؤسسة الرواج، وحققوا مشروعكم.',
+    'Rejoignez-nous':'انضموا إلينا','Fondation Arrawaj':'مؤسسة الرواج','© 2026 — Inspirés · Accompagnés · Réussis':'© 2026 — إلهام · مواكبة · نجاح',
+    'Ouvrir sur YouTube':'مشاهدة على يوتيوب','Nom et prénom *':'الاسم الكامل *','Ville *':'المدينة *','Activité *':'النشاط *',
+    'Bénéficiaire de *':'استفدت من *','Financement':'التمويل','Formation':'التكوين','Bazar':'بازار','Rencontre solidaire':'اللقاء التضامني',
+    'Salon':'المعرض','Prix':'الجائزة','Assurance':'التأمين','Assistance':'المساعدة','Autres':'أخرى','À préciser':'يرجى التحديد',
+    'Votre témoignage *':'شهادتك *','Racontez votre expérience avec la Fondation…':'احكِ تجربتك مع المؤسسة…','Votre vidéo':'الفيديو الخاص بك',
+    'Choisir un fichier':'اختيار ملف','Envoyer mon témoignage':'إرسال شهادتي','Merci pour votre témoignage !':'شكراً على شهادتك!',
+    "Votre témoignage a bien été envoyé. Il sera vérifié par la Fondation Arrawaj avant d'être publié sur la carte.":'تم إرسال شهادتك بنجاح. ستراجعها مؤسسة الرواج قبل نشرها على الخريطة.',
+    'Ex. Casablanca':'مثال: الدار البيضاء','Ex. Couturière, coopérative…':'مثال: خياطة، تعاونية…',
+    'Voir':'عرض','Voir moins':'عرض أقل','Aucun témoignage ne correspond à votre recherche.':'لا توجد شهادات تطابق بحثكم.',
+    'La carte':'الخريطة','Témoignages':'شهادات','témoignages':'شهادات','témoignage':'شهادة','Aucun':'لا يوجد',
+    'Ibtissam El Amrani':'ابتسام العمراني','Meryem Benmoussa':'مريم بن موسى','Chkour Mohamed':'شقور محمد','Hammaji Mohamed':'حماجي محمد',
+    'Merzouki Badr':'مرزوقي بدر','Regragui Bouchra':'ركراكي بشرى','Zahra Gouriche':'زهرة كوريش','Ibrahim Ghamza':'إبراهيم غمزة',
+    'Othmane Belakhdar':'عثمان بلخضر','Touria Elgourche':'ثورية الكورش','Kacem Louzi':'قاسم اللوزي','Hajji Samira':'حجي سميرة',
+    'Bouamama Rabiaa':'بوعمامة ربيعة','Sara Boussehra':'سارة بوصهرة',
+    'Meknès':'مكناس','Tanger':'طنجة',"M'diq":'المضيق','Rabat':'الرباط','Tétouan':'تطوان','Aïn Harrouda':'عين حرودة',
+    'Casablanca':'الدار البيضاء','Larache':'العرائش','Mechraâ Bel Ksiri':'مشرع بلقصيري','Oujda':'وجدة',
+    'Menuisière':'نجارة','Présidente de la coopérative « Forum des artisanes » — art du décor artisanal':'رئيسة تعاونية «منتدى الصانعات» — فن الزخرفة التقليدية',
+    'Président de la coopérative « Al Falah » — apiculture & production de miel':'رئيس تعاونية «الفلاح» — تربية النحل وإنتاج العسل',
+    'Propriétaire de « Med Bio Maroc » — production de cosmétiques BIO':'صاحب «Med Bio Maroc» — إنتاج مستحضرات التجميل الطبيعية',
+    'Artisan en cuir':'صانع منتجات جلدية','Couturière':'خياطة','Bijoutière':'صانعة مجوهرات','Salarié':'موظف',
+    'Propriétaire de « Transport Marchandise » — société de transport':'صاحب «Transport Marchandise» — شركة نقل',
+    'Toute personne souhaitant acheter son logement, avec ou sans aide social, peut bénéficier d\u0027un financement auprès de la Fondation Arrawaj.':'يمكن لكل من يرغب في شراء سكنه، بمساعدة اجتماعية أو بدونها، الاستفادة من تمويل مؤسسة الرواج.',
+    'Commerçant':'تاجر','Propriétaire d\u0027une boulangerie traditionnelle':'صاحبة مخبزة تقليدية',
+    'Présidente de la coopérative « Bouamama » — cosmétiques bio':'رئيسة تعاونية «بوعمامة» — مستحضرات تجميل طبيعية',
+    'Propriétaire de la marque « Talya » — huile d\u0027olive':'صاحبة علامة «تاليا» — زيت الزيتون',
+    'Mon atelier a traversé une période très difficile pendant la crise du Covid. Grâce au soutien de la Fondation Arrawaj, j\u0027ai pu me relever et continuer mon activité.':'مرّ مشغلي بفترة صعبة جداً خلال أزمة كوفيد. وبفضل دعم مؤسسة الرواج، تمكنت من النهوض ومواصلة نشاطي.',
+    'Un grand merci à la Fondation Arrawaj, qui m\u0027a offert l\u0027opportunité de bénéficier de formations qui m\u0027ont permis de gagner en autonomie et de mieux gérer mon projet.':'جزيل الشكر لمؤسسة الرواج التي أتاحت لي الاستفادة من تكوينات ساعدتني على تعزيز استقلاليتي وتدبير مشروعي بشكل أفضل.',
+    'La Fondation Arrawaj a énormément apporté à notre coopérative. Elle nous a soutenus dans le financement et nous a également accompagnés sur le plan du marketing. Merci à la Fondation Arrawaj.':'قدمت مؤسسة الرواج الكثير لتعاونيتنا، ودعمتنا بالتمويل وواكبتنا في مجال التسويق. شكراً لمؤسسة الرواج.',
+    'La Fondation Arrawaj a joué un rôle important en m\u0027aidant à faire connaître mon produit et à élargir mon réseau de clients.':'كان لمؤسسة الرواج دور مهم في التعريف بمنتجي وتوسيع شبكة زبائني.',
+    'Il suffit d\u0027avoir de la motivation et du sérieux : la Fondation Arrawaj ne vous refuse pas.':'يكفي أن تتحلوا بالعزيمة والجدية؛ فمؤسسة الرواج لا تردّ من يقصدها.',
+    'Grâce à la Fondation Arrawaj, j\u0027ai pu équiper mon projet et bénéficier d\u0027un accompagnement qui m\u0027a ouvert à de nouveaux marchés.':'بفضل مؤسسة الرواج، جهزت مشروعي واستفدت من المواكبة التي فتحت أمامي أسواقاً جديدة.',
+    'La Fondation Arrawaj m\u0027a soutenu dans le développement de mon projet grâce à un financement et un accompagnement continu.':'دعمتني مؤسسة الرواج في تطوير مشروعي من خلال التمويل والمواكبة المستمرة.',
+    'Merci à la Fondation Arrawaj pour les services humains et l\u0027accompagnement qu\u0027elle m\u0027a offerts tout au long de la durée du prêt.':'شكراً لمؤسسة الرواج على خدماتها الإنسانية ومواكبتها لي طوال مدة القرض.',
+    'Je conseille aux jeunes ambitieux de se tourner vers la Fondation Arrawaj. C\u0027est une institution bienveillante qui soutient et accompagne les jeunes.':'أنصح الشباب الطموح بالتوجه إلى مؤسسة الرواج؛ فهي مؤسسة داعمة تواكب الشباب وتساندهم.',
+    'Après l\u0027incendie de mon local, je me suis adressé à la Fondation Arrawaj. J\u0027ai fourni les documents demandés et j\u0027ai pu bénéficier de mon assurance qui m\u0027a aidé à relancer mon projet.':'بعد الحريق الذي شبّ في محلي، توجهت إلى مؤسسة الرواج وقدمت الوثائق المطلوبة، فاستفدت من التأمين الذي ساعدني على إعادة إطلاق مشروعي.',
+    'Toute personne qui débute un projet peut se tourner vers la Fondation Arrawaj. Ils accompagnent tout le monde, il suffit simplement d\u0027être sérieux et engagé dans son projet.':'يمكن لكل من يبدأ مشروعاً أن يتوجه إلى مؤسسة الرواج. فهي تواكب الجميع، وكل ما يلزم هو الجدية والالتزام بالمشروع.',
+    'En plus du financement, j\u0027ai bénéficié de plusieurs services d\u0027accompagnement qui ont été un véritable soutien pour mon projet.':'إلى جانب التمويل، استفدت من خدمات مواكبة متعددة شكلت دعماً حقيقياً لمشروعي.',
+    'N\u0027ayez pas peur de vous lancer dans un projet ! Si vous avez une idée, adressez-vous à la Fondation Arrawaj. Ils peuvent vous financer et vous accompagner pour développer votre projet.':'لا تخافوا من إطلاق مشروع! إذا كانت لديكم فكرة، فتوجهوا إلى مؤسسة الرواج؛ يمكنها تمويلكم ومواكبتكم لتطوير مشروعكم.'
+  };
+  Object.assign(translations, {
+    'Chaque point sur cette carte':'كل نقطة على هذه الخريطة',
+    'raconte une réussite.':'تحكي قصة نجاح.',
+    'Découvrez les témoignages de celles et ceux qui ont concrétisé leurs projets avec la Fondation ARRAWAJ.':'اكتشف شهادات أولئك الذين تجسدت مشاريعهم على أرض الواقع بفضل مؤسسة الرواج.',
+    'Tous les témoignages.':'جميع الشهادات.',
+    'Parcourez les témoignages de nos clients et cliquez sur une fiche pour découvrir leur parcours.':'تصفح شهادات عملائنا وانقر على أي بطاقة لاكتشاف مسارهم.',
+    'Plus anciens d\u0027abord':'الأقدم',
+    'Plus récents d\u0027abord':'الأحدث',
+    'Ouvrir sur YouTube':'الفتح على يوتيوب',
+    'Et si la prochaine réussite était la vôtre ?':'ماذا لو كانت قصة النجاح القادمة هي قصتك؟',
+    'Rejoignez les milliers de micro-entrepreneurs accompagnés par la Fondation ARRAWAJ et donnez vie à votre projet.':'انضم إلى آلاف أصحاب المشاريع الصغيرة المستفيدين من مواكبة مؤسسة الرواج، وامنح الحياة لمشروعكم.',
+    'Rejoignez-nous':'انضم إلينا',
+    'Ajouter mon témoignage':'إضافة شهادتي',
+    'Partagez votre expérience avec la Fondation Arrawaj. Votre histoire pourra inspirer d\u0027autres porteurs de projet.':'شارك تجربتك مع مؤسسة الرواج. قد تكون قصتك مصدر إلهام لحاملي مشاريع آخرين.',
+    'Merci pour votre témoignage !':'شكراً على شهادتك!',
+    'Votre témoignage a bien été envoyé. Il sera vérifié par la Fondation Arrawaj avant d\u0027être publié sur la carte.':'تم إرسال شهادتك بنجاح. سيتم مراجعتها من طرف مؤسسة الرواج قبل نشرها على الخريطة.',
+    '© 2026 — Inspirés · Accompagnés · Réussis':'© 2026 — مُلهمون · مواكَبون · ناجحون'
+  });
+  const workbookArabic = {
+  "Ibtissam El Amrani": {
+    "name": "ابتسام العمراني",
+    "project": "نجارة",
+    "city": "مكناس",
+    "support": "التكوين",
+    "quote": "الورشة ديالي دازت من أزمة صعيبة بزاف ففترة كوفيد-19. وبفضل الدعم ديال مؤسسة الرواج، قدرت نوقف من جديد، نستقر فخدمتي ونكمل فالحرفة ديالي."
+  },
+  "Meryem Benmoussa": {
+    "name": "مريم بن موسى",
+    "project": "رئيسة تعاونية \"ملتقى الحرفيات\" لتصميم فن الديكور اليدوي",
+    "city": "طنجة",
+    "support": "التكوين",
+    "quote": "شكر خاص لمؤسسة الرواج لي تاحتلي فرصة الاستفادة من دورات تكوينية خلاتني نعتمد على راسي باش نسير المشروع ديالي"
+  },
+  "Chkour Mohamed": {
+    "name": "شقور محمد",
+    "project": "رئيس تعاونية \"الفلاح\" لتربية النحل وإنتاج العسل",
+    "city": "طنجة",
+    "support": "المعارض والأسواق",
+    "quote": "فضل مؤسسة الرواج على التعاونية ديالنا كبير. عاوناتنا في التمويل وفكراتلنا في التسويق كذلك، شكرا مؤسسة الرواج."
+  },
+  "Hammaji Mohamed": {
+    "name": "حماجي محمد",
+    "project": "صاحب شركة \"ميد بيو\"، متخصصة في إنتاج المواد التجميلية الطبيعية",
+    "city": "المضيق",
+    "support": "المعارض والأسواق",
+    "quote": "مؤسسة الرواج كان لها فضل كبير علي للتعريف بالمنتوج ديالي وتوسيع شبكة زبنائي"
+  },
+  "Merzouki Badr": {
+    "name": "مرزوقي بدر",
+    "project": "صانع تقليدي في مهنة الجلد",
+    "city": "الرباط",
+    "support": "سلف فردي",
+    "quote": "يكفي غير تكون عندك الرغبة فالخدمة والجدية، ومؤسسة الرواج ما غاديش تقول لك لا."
+  },
+  "Regragui Bouchra": {
+    "name": "ركراكي بشرى",
+    "project": "خياطة",
+    "city": "تطوان",
+    "support": "المعارض والأسواق",
+    "quote": "بفضل مساعدة مؤسسة الرواج، قدرت نقتني كل مايلزم المشروع ديالي، إضافة إلى مواكبة لي خلاتني ننفتح على العديد من الأسواق الوطنية"
+  },
+  "Zahra Gouriche": {
+    "name": "زهرة كوريش",
+    "project": "بائعة مجوهرات",
+    "city": "عين حرودة",
+    "support": "المعارض والأسواق",
+    "quote": "مؤسسة الرواج كانت السند ديالي باش نطور المشروع ديالي. استفدت من تمويل ومواكبة مستمرة ساهمت بشكل كبير في نمو وتطوير مشروعي."
+  },
+  "Ibrahim Ghamza": {
+    "name": "إبراهيم غمزة",
+    "project": "مهني",
+    "city": "الدار البيضاء",
+    "support": "الإغاثة",
+    "quote": "شكراً لمؤسسة الرواج على الخدمات الإنسانية والمواكبة لي قدموها ليا طيلة مدة السلف."
+  },
+  "Othmane Belakhdar": {
+    "name": "عثمان بلخضر",
+    "project": "صاحب شركة \"ترينسپور مارشونديز\"",
+    "city": "العرائش",
+    "support": "تمويل وسيلة النقل",
+    "quote": "كاننصح الشباب الطموح يقصد مؤسسة الرواج، معاهم الخير وكايعاونو الشباب"
+  },
+  "Touria Elgourche": {
+    "name": "ثورية الكورش",
+    "project": "مهنية",
+    "city": "مكناس",
+    "support": "تمويل السكن",
+    "quote": "لي بغى يشري دارو، بالدعم أو بلا دعم، مؤسسة الرواج تتسلفو"
+  },
+  "Kacem Louzi": {
+    "name": "قاسم اللوزي",
+    "project": "تاجر",
+    "city": "مشرع بلقصيري",
+    "support": "التأمين",
+    "quote": "من بعد ما تعرض المحل ديالي للحريق، توجهت لمؤسسة الرواج، وقدمت الوثائق المطلوبة، والحمد لله استفدت من تعويض ساعدني نعاود نوقف المشروع ديالي."
+  },
+  "Hajji Samira": {
+    "name": "حجي سميرة",
+    "project": "صاحبة مخبزة",
+    "city": "المضيق",
+    "support": "المعارض والأسواق، الجائزة الوطنية للمقاولة الصغرى",
+    "quote": "أي واحد باغي يبدا المشروع ديالو أو عندو فكرة، يتوجه لمؤسسة الرواج. كيوفرو التمويل والمواكبة، وكيعطيو الفرصة لأي شخص جاد وطموح باش ينجح فالمشروع ديالو."
+  },
+  "Bouamama Rabiaa": {
+    "name": "بوعمامة ربيعة",
+    "project": "رئيسة تعاونية \"بوعمامة\" المتخصصة في إنتاج مستحضرات التجميل الطبيعية",
+    "city": "وجدة",
+    "support": "المعارض والأسواق، التكوين",
+    "quote": "بالإضافة للتمويل، استفدت من العديد من خدمات المواكبة لكانت دعم حقيقي للمشروع ديالي"
+  },
+  "Sara Boussehra": {
+    "name": "سارة بوصهرة",
+    "project": "صاحبة العلامة التجارية \"تايلا\" لزيت الزيتون",
+    "city": "الدار البيضاء",
+    "support": "المعارض والأسواق، التكوين",
+    "quote": "ماتخافوش من فكرة مشروع! تكون عندكم فكرة التجؤو لمؤسسة الرواج، هم يقدرو يمولوكم ويعاونكم تخدمو على المشروع ديالكم"
+  }
+};
+  window.ARRAWAJ_STORY_AR=workbookArabic;
+  STORIES.forEach(story=>{
+    const data=workbookArabic[story.name];
+    if(!data)return;
+    translations[story.name]=data.name;
+    if(story.ar)translations[story.ar]=data.name;
+    translations[story.project]=data.project;
+    translations[story.city]=data.city;
+    translations[story.quote]=data.quote;
+  });
+  translations['Financement']='التمويل';
+  translations['Bazar']='المعارض والأسواق';
+  translations['Formation']='التكوين';
+  translations['Assistance']='الإغاثة';
+  translations['Assurance']='التأمين';
+  translations['Prix']=workbookArabic['Hajji Samira'].support.split('،').pop().trim();
+  const originalText = new WeakMap(), originalAttr = new WeakMap();
+  let arabic = false;
+  try{arabic=localStorage.getItem('arrawaj-language')==='ar'}catch{}
+  const translateText = value => {
+    const trimmed = value.trim();
+    if (translations[trimmed]) return value.replace(trimmed, translations[trimmed]);
+    let match = trimmed.match(/^Témoignage (\d{4})$/);
+    if (match) return value.replace(trimmed, `شهادة ${match[1]}`);
+    match = trimmed.match(/^Voir plus \((\d+)\)$/);
+    if (match) return value.replace(trimmed, `عرض المزيد (${match[1]})`);
+    match = trimmed.match(/^(.+) — Témoignage vidéo$/);
+    if (match) return value.replace(trimmed, `${translations[match[1]] || match[1]} — شهادة مصوّرة`);
+    return value;
+  };
+  function updateNode(node){
+    if(node.nodeType === Node.TEXT_NODE){
+      if(!originalText.has(node)) originalText.set(node,node.nodeValue);
+      const base=originalText.get(node), next=arabic?translateText(base):base;
+      if(node.nodeValue!==next) node.nodeValue=next;
+    } else if(node.nodeType === Node.ELEMENT_NODE){
+      for(const attr of ['placeholder','aria-label','title']){
+        if(node.hasAttribute(attr)){
+          let attrs=originalAttr.get(node);if(!attrs){attrs={};originalAttr.set(node,attrs)}
+          if(!(attr in attrs))attrs[attr]=node.getAttribute(attr);
+          const base=attrs[attr], next=arabic?(translations[base]||base):base;
+          if(node.getAttribute(attr)!==next) node.setAttribute(attr,next);
+        }
+      }
+      node.childNodes.forEach(updateNode);
+    }
+  }
+  function apply(){
+    document.documentElement.lang=arabic?'ar':'fr';document.documentElement.dir=arabic?'rtl':'ltr';
+    window.arrawajLanguage=arabic?'ar':'fr';
+    document.body.classList.toggle('arabic-mode',arabic);
+    document.title=arabic?'الرواج — خريطة قصص النجاح':'Arrawaj — Story Mapping';
+    document.querySelectorAll('meta[name="description"]').forEach(m=>m.content=arabic?'قصص نجاح عملائنا — إلهام، مواكبة، نجاح.':'Histoires de réussite de nos clients — Inspirés, Accompagnés, Réussis.');
+    document.querySelectorAll('.language-option').forEach(b=>{const active=b.dataset.lang===(arabic?'ar':'fr');b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active))});
+    if(window.setArrawajBasemapLanguage)window.setArrawajBasemapLanguage(arabic?'ar':'fr');
+    if(typeof renderGrid==='function')renderGrid();
+    if(typeof currentIdx!=='undefined'&&currentIdx>=0&&typeof pMeta!=='undefined')openStory(currentIdx,false);
+    updateNode(document.body);
+  }
+  document.querySelectorAll('.language-option').forEach(b=>b.addEventListener('click',()=>{arabic=b.dataset.lang==='ar';try{localStorage.setItem('arrawaj-language',arabic?'ar':'fr')}catch{}apply()}));
+  const observer=new MutationObserver(records=>{if(!arabic)return;records.forEach(r=>r.addedNodes.forEach(updateNode));records.forEach(r=>{if(r.type==='characterData')updateNode(r.target)})});
+  observer.observe(document.body,{childList:true,subtree:true,characterData:true});
+  apply();
 })();
 </script>
 </body>
