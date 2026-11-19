@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/admin.js": {
+      "includeFiles": ["admin.html"]
+    }
+  },
+  "redirects": [
+    { "source": "/admin.html", "destination": "/admin", "permanent": false },
+    { "source": "/admin/", "destination": "/admin", "permanent": false }
+  ],
+  "rewrites": [
+    { "source": "/admin", "destination": "/api/admin" }
+  ]
+}

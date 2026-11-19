@@ -465,7 +465,7 @@
   .chip.yellow{background:#FFF7D6;color:#7a5a00;border-color:#FBE49A}
   .panel .video{
     margin-top:14px;border-radius:16px;overflow:hidden;position:relative;
-    aspect-ratio:16/10;
+    aspect-ratio:16/9;flex:0 0 auto;min-height:190px;
     background:
       radial-gradient(120% 80% at 20% 20%, rgba(255,212,59,.6), rgba(255,212,59,0) 60%),
       radial-gradient(120% 80% at 80% 80%, rgba(31,168,74,.55), rgba(31,168,74,0) 60%),
@@ -487,7 +487,7 @@
   }
 .panel .quote{
   margin-top:14px;font-size:13.5px;line-height:1.65;color:var(--ink-700);
-  flex:0 0 auto;min-height:0;max-height:180px;overflow:auto;padding:0 4px;
+  flex:0 1 auto;min-height:0;max-height:120px;overflow:auto;padding:0 4px;
 }
   .panel .quote::-webkit-scrollbar{width:6px}
   .panel .quote::-webkit-scrollbar-thumb{background:var(--ink-100);border-radius:999px}
@@ -947,7 +947,6 @@
 <footer>
   <div class="ft-brand">
     <img src="logo.png" alt="Arrawaj" />
-    <span>Fondation Arrawaj</span>
   </div>
   <div>© 2026 — Inspirés · Accompagnés · Réussis</div>
 </footer>
@@ -1197,6 +1196,37 @@ STORIES.forEach(s => { if(s.video && !s.pubDate) s.pubDate = '01/07/2026'; });
    Repli automatique sur les initiales si le client n'a pas de photo (ex. Hajji Samira). */
 STORIES.forEach(s => { if(!s.photo && typeof PHOTOS !== 'undefined' && PHOTOS[s.name]) s.photo = PHOTOS[s.name]; });
 
+/* Local CMS bridge. This browser-only store is replaced by the hosting API later. */
+const MEDIA_DB_NAME='arrawaj-media-v1';
+function openMediaDb(){return new Promise((resolve,reject)=>{const req=indexedDB.open(MEDIA_DB_NAME,1);req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains('videos'))req.result.createObjectStore('videos')};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
+function storeMediaFile(file){return new Promise(async(resolve,reject)=>{try{const db=await openMediaDb(),id=crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random().toString(36).slice(2),tx=db.transaction('videos','readwrite');tx.objectStore('videos').put({blob:file,name:file.name,type:file.type,createdAt:Date.now()},id);tx.oncomplete=()=>{db.close();resolve(id)};tx.onerror=()=>{db.close();reject(tx.error)}}catch(e){reject(e)}})}
+function readMediaFile(id){return new Promise(async(resolve,reject)=>{try{const db=await openMediaDb(),req=db.transaction('videos','readonly').objectStore('videos').get(id);req.onsuccess=()=>{db.close();resolve(req.result||null)};req.onerror=()=>{db.close();reject(req.error)}}catch(e){reject(e)}})}
+function deleteMediaFile(id){return new Promise(async(resolve,reject)=>{if(!id)return resolve();try{const db=await openMediaDb(),tx=db.transaction('videos','readwrite');tx.objectStore('videos').delete(id);tx.oncomplete=()=>{db.close();resolve()};tx.onerror=()=>{db.close();reject(tx.error)}}catch(e){reject(e)}})}
+const CMS_KEY = 'arrawaj-cms-v1';
+function cmsRead(){ try { return JSON.parse(localStorage.getItem(CMS_KEY)||'{}'); } catch { return {}; } }
+function cmsWrite(v){ localStorage.setItem(CMS_KEY, JSON.stringify(v)); }
+const cms = cmsRead();
+const cmsLoadedAt = cms.updatedAt||0;
+cms.settings = Object.assign({showTestimonials:true,showMap:true}, cms.settings||{});
+cms.content = cms.content||{};
+const PAGE_COPY_DEFAULTS={mapTitle:'Chaque point sur cette carte raconte une réussite.',mapSubtitle:'Découvrez les témoignages de celles et ceux qui ont concrétisé leurs projets avec la Fondation ARRAWAJ.',storiesTitle:'Tous les témoignages.',storiesSubtitle:'Parcourez les témoignages de nos clients et cliquez sur une fiche pour découvrir leur parcours.',ctaTitle:'Et si la prochaine réussite était la vôtre ?',ctaSubtitle:'Rejoignez les milliers de micro-entrepreneurs accompagnés par la Fondation ARRAWAJ et donnez vie à votre projet.',mapTitleAr:'كل نقطة على هذه الخريطة تحكي قصة نجاح.',mapSubtitleAr:'اكتشف شهادات الأشخاص الذين حققوا مشاريعهم بفضل مؤسسة الرواج.',storiesTitleAr:'جميع الشهادات.',storiesSubtitleAr:'اكتشف شهادات عملائنا وانقر على بطاقة للتعرف على مسارهم.',ctaTitleAr:'ماذا لو كانت قصة النجاح القادمة قصتك؟',ctaSubtitleAr:'انضم إلى آلاف أصحاب المشاريع الصغيرة الذين تواكبهم مؤسسة الرواج، وامنح الحياة لمشروعك.'};
+cms.content=Object.assign({},PAGE_COPY_DEFAULTS,cms.content);
+cms.requests = cms.requests||[];
+cms.stories = cms.stories||[];
+// Seed compact editable records once. Photos are bundled in the page and need
+// not be copied into localStorage (some are large embedded data URLs).
+let cmsNeedsSave=false;
+if(!cms.seeded){ cms.stories = STORIES.map(s=>{const copy={...s,showOnMap:true,managed:true};delete copy.photo;return copy}); cms.seeded=true;cmsNeedsSave=true; }
+cms.stories.forEach(s=>{if(s.photo){delete s.photo;cmsNeedsSave=true}});
+const managedByName = new Map(cms.stories.filter(s=>s.managed).map(s=>[s.name,s]));
+STORIES.forEach((story,i)=>{
+  const edited=managedByName.get(story.name);
+  if(edited) Object.assign(story,edited);
+  story.showOnMap = edited?.showOnMap !== false;
+});
+cms.stories.filter(s=>!s.managed && s.status==='accepted').forEach(s=>{ s.showOnMap=s.showOnMap!==false; STORIES.push(s); });
+if(cmsNeedsSave) cmsWrite(cms);
+
 
 /* ====== MAP ====== */
 const map = L.map('map', {
@@ -1310,16 +1340,16 @@ function avatarInner(s){
 }
 function storyText(s,field){
   const arabic=window.arrawajLanguage==='ar'&&window.ARRAWAJ_STORY_AR&&window.ARRAWAJ_STORY_AR[s.name];
-  return arabic&&arabic[field] ? arabic[field] : s[field];
+  const localArabic=s[field+'Ar'] || (field==='name'&&s.ar);
+  return window.arrawajLanguage==='ar' && localArabic ? localArabic : (arabic&&arabic[field] ? arabic[field] : s[field]);
 }
-/* Bulles d'appui : toujours « Financement » en premier, puis les autres appuis */
+/* Show only the support types actually saved for this testimonial. */
 function tagsFor(s){
-  const rest = (s.support||[]).filter(t => t.toLowerCase() !== 'financement');
-  return ['Financement', ...rest];
+  return Array.isArray(s.support) ? s.support : [];
 }
 function displayTagsFor(s){
   const translated=window.arrawajLanguage==='ar'&&window.ARRAWAJ_STORY_AR&&window.ARRAWAJ_STORY_AR[s.name];
-  return translated&&translated.support ? translated.support.split(/[،,]/).map(t=>t.trim()).filter(Boolean) : tagsFor(s);
+  return window.arrawajLanguage==='ar'&&s.supportAr?.length ? s.supportAr : (translated&&translated.support ? translated.support.split(/[،,]/).map(t=>t.trim()).filter(Boolean) : tagsFor(s));
 }
 
 function pinIcon(story, idx){
@@ -1382,12 +1412,12 @@ pVideo.addEventListener('click', ()=>{
 const videoModal = document.getElementById('videoModal');
 const videoModalFrame = document.getElementById('videoModalFrame');
 const videoModalYT = document.getElementById('videoModalYT');
+let activeLocalVideoUrl='',localVideoLoad=0;
 function openVideoModal(id, url){
   if(id === 'local'){
-    // Vidéo importée : lecteur HTML5 (pas de lien YouTube)
-    videoModalFrame.innerHTML =
-      `<video src="${url}" controls autoplay playsinline style="width:100%;height:100%;background:#000"></video>`;
-    videoModalYT.style.display = 'none';
+    const loadId=++localVideoLoad;videoModalFrame.innerHTML='<div style="color:#fff;padding:24px">Chargement de la vidéo…</div>';videoModalYT.style.display='none';
+    videoModal.classList.add('open');videoModal.setAttribute('aria-hidden','false');
+    (async()=>{try{let src=url;if(!/^data:|^blob:/.test(src||'')){const item=await readMediaFile(src);if(!item||!item.blob)throw new Error('Vidéo introuvable dans le stockage de ce navigateur.');if(activeLocalVideoUrl)URL.revokeObjectURL(activeLocalVideoUrl);activeLocalVideoUrl=URL.createObjectURL(item.blob);src=activeLocalVideoUrl}if(loadId===localVideoLoad)videoModalFrame.innerHTML=`<video src="${src}" controls autoplay playsinline style="width:100%;height:100%;background:#000"></video>`}catch(e){if(loadId===localVideoLoad)videoModalFrame.innerHTML=`<div style="color:#fff;padding:24px">${e.message}</div>`}})();return;
   } else {
     videoModalFrame.innerHTML =
       `<iframe src="https://www.youtube.com/embed/${id}?autoplay=1&rel=0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>`;
@@ -1398,6 +1428,7 @@ function openVideoModal(id, url){
   videoModal.setAttribute('aria-hidden','false');
 }
 function closeVideoModal(){
+  localVideoLoad++;if(activeLocalVideoUrl){URL.revokeObjectURL(activeLocalVideoUrl);activeLocalVideoUrl=''}
   videoModal.classList.remove('open');
   videoModal.setAttribute('aria-hidden','true');
   videoModalFrame.innerHTML = '';   // stoppe la lecture
@@ -1427,12 +1458,12 @@ function openStory(i, moveMap=true){
   if (id) {
     pVideo.style.display = '';
     resetVideoFacade(s, id);
-  } else if (s.localVideo) {
-    // Vidéo importée par l'utilisateur (fichier local)
+  } else if (s.localVideoId || s.localVideo) {
+    // Vidéo importée par l'utilisateur
     pVideo.style.display = '';
     pVideo.style.background = 'linear-gradient(135deg,#0E6F2F,#1FA84A)';
     pVideo.dataset.vid = 'local';
-    pVideo.dataset.url = s.localVideo;
+    pVideo.dataset.url = s.localVideoId || s.localVideo;
     pVideo.innerHTML =
       `<div class="play"><svg viewBox="0 0 24 24" width="22" height="22" fill="#fff" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></div>
        <div class="vlabel">${storyText(s,'name')} — ${window.arrawajLanguage==='ar'?'شهادة مصوّرة':'Témoignage vidéo'}</div>`;
@@ -1505,9 +1536,11 @@ function applyFilters(){
     const s = STORIES[i];
     const supOk  = activeSupport==='all' || tagsFor(s).some(t=>t.toLowerCase().includes(activeSupport.toLowerCase()));
     const cityOk = activeCity==='all' || s.city===activeCity;
-    if(supOk && cityOk && matchesSearch(s)){ m.addTo(map); } else { map.removeLayer(m); }
+    if(s.showOnMap!==false && supOk && cityOk && matchesSearch(s)){ m.addTo(map); } else { map.removeLayer(m); }
   });
 }
+// Apply editorial map visibility immediately on first render as well as after filters change.
+applyFilters();
 
 supportSelect.addEventListener('change', e=>{ activeSupport = e.target.value; applyFilters(); });
 
@@ -1706,7 +1739,7 @@ map.once('click',()=>map.scrollWheelZoom.enable());
     return i;
   }
 
-  form.addEventListener('submit', e=>{
+  form.addEventListener('submit', async e=>{
     e.preventDefault();
     const fd = new FormData(form);
     let support = fd.getAll('support');   // sélection multiple (bénéficiaire de)
@@ -1720,23 +1753,29 @@ map.once('click',()=>map.scrollWheelZoom.enable());
       alert('Merci de sélectionner au moins un type d\'appui (Bénéficiaire de).');
       return;
     }
-    // IMPORTANT — Les témoignages soumis par les visiteurs ne sont PAS publiés
-    // automatiquement sur la carte : ils doivent d'abord être vérifiés par la
-    // Fondation Arrawaj. En l'absence de back-office (phase test), on se contente
-    // d'afficher le message de confirmation. Le branchement vers le back-office
-    // (enregistrement en « attente de validation ») se fera plus tard.
+    const uploadedVideo=fd.get('videoFile');let localVideoId='';if(uploadedVideo&&uploadedVideo.size){if(!uploadedVideo.type.startsWith('video/')||uploadedVideo.size>200*1024*1024){alert('Choisissez une vidéo de 200 Mo maximum.');return}try{localVideoId=await storeMediaFile(uploadedVideo)}catch(err){alert('La vidéo n’a pas pu être enregistrée dans ce navigateur. Vérifiez son espace de stockage.');return}}
+    const request = {id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),name:fd.get('name').trim(),city:fd.get('city').trim(),project:fd.get('project').trim(),support,quote:fd.get('quote').trim(),coords:cityCoords(fd.get('city').trim()),year:nowYear,pubDate:new Date().toLocaleDateString('fr-FR'),status:'pending',showOnMap:false,date:new Date().toISOString(),localVideoId,localVideoName:uploadedVideo&&uploadedVideo.size?uploadedVideo.name:''};
+    const current=cmsRead(); current.requests=current.requests||[]; current.requests.unshift(request); cmsWrite(current);
     form.style.display = 'none';
     success.classList.add('show');
   });
 })();
+// Apply editable page copy and visibility switches from the CMS store.
+(function(){
+  const c=cms.content||{}, arabic=localStorage.getItem('arrawaj-language')==='ar', set=(selector,key)=>{const value=arabic?(c[key+'Ar']||c[key]):c[key];if(value){const el=document.querySelector(selector);if(el)el.textContent=value}};
+  set('.map-section .section-head h2','mapTitle');set('.map-section .section-head .sub','mapSubtitle');
+  set('.grid-section .section-head h2','storiesTitle');set('.grid-section .section-head .sub','storiesSubtitle');
+  set('.cta-card h3','ctaTitle');set('.cta-card p','ctaSubtitle');
+  if(!cms.settings.showMap)document.querySelector('.map-section').hidden=true;
+  if(!cms.settings.showTestimonials)document.querySelector('.grid-section').hidden=true;
+})();
+function refreshCmsIfChanged(){try{const latest=cmsRead();if((latest.updatedAt||0)>cmsLoadedAt)location.reload()}catch{}}
+window.addEventListener('storage',e=>{if(e.key===CMS_KEY)refreshCmsIfChanged()});
+window.addEventListener('focus',refreshCmsIfChanged);
 </script>
 <div class="language-switch" role="group" aria-label="اختيار اللغة">
-  <button type="button" class="language-option active" data-lang="fr" aria-label="Français" aria-pressed="true" title="Français">
-    <svg viewBox="0 0 36 24" role="img" aria-hidden="true"><rect width="12" height="24" fill="#002395"/><rect x="12" width="12" height="24" fill="#fff"/><rect x="24" width="12" height="24" fill="#ED2939"/></svg>
-  </button>
-  <button type="button" class="language-option" data-lang="ar" aria-label="العربية" aria-pressed="false" title="العربية">
-    <svg viewBox="0 0 36 24" role="img" aria-hidden="true"><rect width="36" height="24" rx="2" fill="#C1272D"/><path d="m18 4 2.35 6.25 6.7-.06-5.42 3.95 2.1 6.37L18 16.6l-5.73 3.91 2.1-6.37-5.42-3.95 6.7.06z" fill="none" stroke="#006233" stroke-width="1.25" stroke-linejoin="round"/></svg>
-  </button>
+  <button type="button" class="language-option active" data-lang="fr" aria-label="Français" aria-pressed="true" title="Français">Français</button>
+  <button type="button" class="language-option" data-lang="ar" aria-label="العربية" aria-pressed="false" title="العربية">العربية</button>
 </div>
 <style>
   .language-switch{position:fixed;right:22px;bottom:22px;z-index:10000;display:flex;gap:4px;padding:5px;background:rgba(255,255,255,.94);border:1px solid rgba(11,15,20,.1);border-radius:999px;box-shadow:0 8px 28px rgba(11,15,20,.2);backdrop-filter:blur(14px)}
@@ -1749,7 +1788,18 @@ map.once('click',()=>map.scrollWheelZoom.enable());
   html[dir="rtl"] .nav{padding:8px 16px 8px 10px}
   html[dir="rtl"] .nav-search input,html[dir="rtl"] input,html[dir="rtl"] textarea,html[dir="rtl"] select{text-align:right;font-family:inherit}
   html[dir="rtl"] .drawer-head,html[dir="rtl"] .drawer-body{text-align:right}
-  @media(max-width:640px){.language-switch{right:14px;bottom:14px}.language-option{width:40px;height:40px}}
+  .language-option{width:auto;min-width:84px;padding:0 14px;border-radius:999px;font-size:14px;font-weight:700;white-space:nowrap}
+  .language-option svg{display:none}
+  @media(max-width:760px){
+    .nav{top:10px;width:calc(100vw - 20px);left:10px;transform:none;display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-areas:"burger search" "brand brand";gap:8px 12px;padding:10px 12px;border-radius:24px}
+    .nav .burger{grid-area:burger;justify-self:start}
+    .nav .nav-search{grid-area:search;width:100%;max-width:none;margin:0}
+    .nav .brand{grid-area:brand;justify-self:center;max-width:100%;padding:2px 0}
+    .nav .brand img{height:28px;max-width:min(100%,280px);object-fit:contain}
+    .panel{max-height:78vh;padding:14px;border-radius:20px}
+    .panel .video{min-height:180px}
+  }
+  @media(max-width:420px){.language-switch{right:10px;bottom:10px}.language-option{min-width:76px;padding:0 11px;font-size:13px}}
 </style>
 <script>
 (() => {
@@ -1939,6 +1989,7 @@ map.once('click',()=>map.scrollWheelZoom.enable());
   translations['Assistance']='الإغاثة';
   translations['Assurance']='التأمين';
   translations['Prix']=workbookArabic['Hajji Samira'].support.split('،').pop().trim();
+  try{const copy=JSON.parse(localStorage.getItem('arrawaj-cms-v1')||'{}').content||{};for(const k of ['mapTitle','mapSubtitle','storiesTitle','storiesSubtitle','ctaTitle','ctaSubtitle'])if(copy[k]&&copy[k+'Ar'])translations[copy[k]]=copy[k+'Ar']}catch{}
   const originalText = new WeakMap(), originalAttr = new WeakMap();
   let arabic = false;
   try{arabic=localStorage.getItem('arrawaj-language')==='ar'}catch{}
