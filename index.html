@@ -1762,7 +1762,7 @@ map.once('click',()=>map.scrollWheelZoom.enable());
 })();
 // Apply editable page copy and visibility switches from the CMS store.
 (function(){
-  const c=cms.content||{}, arabic=localStorage.getItem('arrawaj-language')==='ar', set=(selector,key)=>{const value=arabic?(c[key+'Ar']||c[key]):c[key];if(value){const el=document.querySelector(selector);if(el)el.textContent=value}};
+  const c=cms.content||{}, set=(selector,key)=>{const value=c[key];if(value){const el=document.querySelector(selector);if(el)el.textContent=value}};
   set('.map-section .section-head h2','mapTitle');set('.map-section .section-head .sub','mapSubtitle');
   set('.grid-section .section-head h2','storiesTitle');set('.grid-section .section-head .sub','storiesSubtitle');
   set('.cta-card h3','ctaTitle');set('.cta-card p','ctaSubtitle');
