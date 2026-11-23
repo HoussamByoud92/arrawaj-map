@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
     "api/admin.js": {
-      "includeFiles": ["admin.html"]
+      "includeFiles": "admin.html"
     }
   },
   "redirects": [
