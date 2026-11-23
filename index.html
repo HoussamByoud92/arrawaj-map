@@ -1338,6 +1338,11 @@ function avatarInner(s){
   const ph = photoFor(s);
   return ph ? `<img src="${ph}" alt="${s.name}" loading="lazy">` : initials(s.name);
 }
+// Map pins use client portraits only; video thumbnails belong to the story player.
+function mapAvatarInner(s){
+  const ph=s.photo || (typeof PHOTOS!=='undefined' && PHOTOS[s.name]) || '';
+  return ph ? `<img src="${ph}" alt="${s.name}" loading="lazy">` : initials(s.name);
+}
 function storyText(s,field){
   const arabic=window.arrawajLanguage==='ar'&&window.ARRAWAJ_STORY_AR&&window.ARRAWAJ_STORY_AR[s.name];
   const localArabic=s[field+'Ar'] || (field==='name'&&s.ar);
@@ -1359,7 +1364,7 @@ function pinIcon(story, idx){
     html:`
       <div class="pin ${isGreen?'green':''}" data-idx="${idx}">
         <div class="ping"></div>
-        <div class="bub"><div class="ava">${avatarInner(story)}</div></div>
+        <div class="bub"><div class="ava">${mapAvatarInner(story)}</div></div>
         <div class="tail"></div>
       </div>`,
     iconSize:[54,64],
