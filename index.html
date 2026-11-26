@@ -1207,8 +1207,10 @@ function cmsRead(){ try { return JSON.parse(localStorage.getItem(CMS_KEY)||'{}')
 function cmsWrite(v){ localStorage.setItem(CMS_KEY, JSON.stringify(v)); }
 const cms = cmsRead();
 const cmsLoadedAt = cms.updatedAt||0;
+fetch('/api/cms').then(r=>r.ok?r.json():null).then(remote=>{if(!remote?.data)return;const fresh=remote.data;if(Number(fresh.updatedAt||0)>Number(cmsLoadedAt||0)){try{localStorage.setItem(CMS_KEY,JSON.stringify({...fresh,updatedAt:fresh.updatedAt}));location.reload()}catch{}}}).catch(()=>{});
 cms.settings = Object.assign({showTestimonials:true,showMap:true}, cms.settings||{});
 cms.content = cms.content||{};
+cms.sections = Array.isArray(cms.sections)?cms.sections:[];
 const PAGE_COPY_DEFAULTS={mapTitle:'Chaque point sur cette carte raconte une réussite.',mapSubtitle:'Découvrez les témoignages de celles et ceux qui ont concrétisé leurs projets avec la Fondation ARRAWAJ.',storiesTitle:'Tous les témoignages.',storiesSubtitle:'Parcourez les témoignages de nos clients et cliquez sur une fiche pour découvrir leur parcours.',ctaTitle:'Et si la prochaine réussite était la vôtre ?',ctaSubtitle:'Rejoignez les milliers de micro-entrepreneurs accompagnés par la Fondation ARRAWAJ et donnez vie à votre projet.',mapTitleAr:'كل نقطة على هذه الخريطة تحكي قصة نجاح.',mapSubtitleAr:'اكتشف شهادات الأشخاص الذين حققوا مشاريعهم بفضل مؤسسة الرواج.',storiesTitleAr:'جميع الشهادات.',storiesSubtitleAr:'اكتشف شهادات عملائنا وانقر على بطاقة للتعرف على مسارهم.',ctaTitleAr:'ماذا لو كانت قصة النجاح القادمة قصتك؟',ctaSubtitleAr:'انضم إلى آلاف أصحاب المشاريع الصغيرة الذين تواكبهم مؤسسة الرواج، وامنح الحياة لمشروعك.'};
 cms.content=Object.assign({},PAGE_COPY_DEFAULTS,cms.content);
 cms.requests = cms.requests||[];
@@ -1326,7 +1328,7 @@ function videoId(url){
   return id.replace(/[^A-Za-z0-9_-]/g,'');   // strip any stray characters
 }
 function photoFor(s){
-  const clientPhoto=(typeof PHOTOS!=='undefined' && PHOTOS[s.name]) || s.photo;
+  const clientPhoto=s.photo || (typeof PHOTOS!=='undefined' && PHOTOS[s.name]);
   if(clientPhoto) return clientPhoto;
   const id = videoId(s.video);
   return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : '';
@@ -1341,7 +1343,7 @@ function avatarInner(s){
 }
 // Map pins use client portraits only; video thumbnails belong to the story player.
 function mapAvatarInner(s){
-  const ph=(typeof PHOTOS!=='undefined' && PHOTOS[s.name]) || s.photo || '';
+  const ph=s.photo || (typeof PHOTOS!=='undefined' && PHOTOS[s.name]) || '';
   return ph ? `<img src="${ph}" alt="${s.name}" loading="lazy">` : initials(s.name);
 }
 function storyText(s,field){
@@ -1996,6 +1998,32 @@ window.addEventListener('focus',refreshCmsIfChanged);
   translations['Assurance']='التأمين';
   translations['Prix']=workbookArabic['Hajji Samira'].support.split('،').pop().trim();
   try{const copy=JSON.parse(localStorage.getItem('arrawaj-cms-v1')||'{}').content||{};for(const k of ['mapTitle','mapSubtitle','storiesTitle','storiesSubtitle','ctaTitle','ctaSubtitle'])if(copy[k]&&copy[k+'Ar'])translations[copy[k]]=copy[k+'Ar']}catch{}
+  const customSections=[];
+  function renderCustomSections(){
+    document.querySelectorAll('[data-admin-section]').forEach(node=>node.remove());
+    customSections.length=0;
+    const anchors=[...document.body.children].filter(node=>node.tagName==='SECTION'&&!node.hasAttribute('data-admin-section'));
+    const lastAtPosition=new Map();
+    [...cms.sections].filter(item=>item&&item.active!==false).sort((a,b)=>(Number(a.position)||0)-(Number(b.position)||0)).forEach((item,index)=>{
+      const section=document.createElement('section');section.className='custom-content-section';section.dataset.adminSection=item.id||String(index);section.style.cssText='padding:clamp(36px,6vw,84px) max(20px,calc((100% - 1180px)/2));background:#f7faf7;border-top:1px solid #e4ece5';
+      const title=document.createElement('h2');title.style.cssText='font-size:clamp(25px,4vw,42px);margin:0 0 22px;color:#18221c';
+      const body=document.createElement('p');body.style.cssText='max-width:780px;color:#536157;font-size:17px;line-height:1.7;margin:0 0 22px';
+      const frTitle=String(item.title||''),arTitle=String(item.titleAr||''),frBody=String(item.body||''),arBody=String(item.bodyAr||'');
+      const mediaUrl=String(item.media||'');
+      title.textContent=frTitle;body.textContent=frBody;body.hidden=!frBody;
+      if(mediaUrl){
+        const wrap=document.createElement('div');wrap.style.cssText='max-width:1000px;border-radius:18px;overflow:hidden;background:#e9efea;box-shadow:0 16px 42px #132b1a18';
+        if(item.mediaType==='video'&&/^https?:\/\//i.test(mediaUrl)){const video=document.createElement('video');video.src=mediaUrl;video.controls=true;video.playsInline=true;video.style.cssText='display:block;width:100%;max-height:620px';wrap.append(video)}
+        else if(item.mediaType==='youtube'&&/^https?:\/\//i.test(mediaUrl)){const match=mediaUrl.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{6,})/);if(match){const frame=document.createElement('iframe');frame.src=`https://www.youtube-nocookie.com/embed/${match[1]}`;frame.title=frTitle;frame.allow='accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture;web-share';frame.allowFullscreen=true;frame.style.cssText='display:block;width:100%;aspect-ratio:16/9;border:0';wrap.append(frame)}}
+        else if(item.mediaType==='image'&&/^\/(?:images\/)|^https:\/\//i.test(mediaUrl)){const image=document.createElement('img');image.src=mediaUrl;image.alt=frTitle;image.loading='lazy';image.style.cssText='display:block;width:100%;height:auto;max-height:620px;object-fit:cover';wrap.append(image)}
+        if(wrap.childElementCount)section.append(title,body,wrap);else section.append(title,body);
+      }else section.append(title,body);
+      const position=Math.max(0,Math.min(anchors.length,Number(item.position)||0));if(lastAtPosition.has(position))lastAtPosition.get(position).after(section);else if(position<anchors.length)anchors[position].before(section);else{const footer=document.querySelector('footer');if(footer)footer.before(section);else document.body.append(section)}lastAtPosition.set(position,section);
+      customSections.push({title,body,frTitle,arTitle,frBody,arBody});
+    });
+  }
+  function updateCustomSections(isArabic){customSections.forEach(item=>{item.title.textContent=isArabic&&item.arTitle?item.arTitle:item.frTitle;item.body.textContent=isArabic&&item.arBody?item.arBody:item.frBody;item.body.hidden=!(isArabic&&item.arBody?item.arBody:item.frBody)})}
+  renderCustomSections();
   const originalText = new WeakMap(), originalAttr = new WeakMap();
   let arabic = false;
   try{arabic=localStorage.getItem('arrawaj-language')==='ar'}catch{}
@@ -2035,6 +2063,7 @@ window.addEventListener('focus',refreshCmsIfChanged);
     document.querySelectorAll('meta[name="description"]').forEach(m=>m.content=arabic?'قصص نجاح عملائنا — إلهام، مواكبة، نجاح.':'Histoires de réussite de nos clients — Inspirés, Accompagnés, Réussis.');
     document.querySelectorAll('.language-option').forEach(b=>{const active=b.dataset.lang===(arabic?'ar':'fr');b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active))});
     if(window.setArrawajBasemapLanguage)window.setArrawajBasemapLanguage(arabic?'ar':'fr');
+    updateCustomSections(arabic);
     if(typeof renderGrid==='function')renderGrid();
     if(typeof currentIdx!=='undefined'&&currentIdx>=0&&typeof pMeta!=='undefined')openStory(currentIdx,false);
     updateNode(document.body);
